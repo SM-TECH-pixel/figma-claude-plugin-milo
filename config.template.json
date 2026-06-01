@@ -1,0 +1,4 @@
+{
+  "_instructions": "Copy this file to config.json and fill in your outputsPath — see README for how to find it.",
+  "outputsPath": "/Users/YOUR_USERNAME/Library/Application Support/Claude/local-agent-mode-sessions/SESSION_ID/CONVERSATION_ID/local_ID/outputs"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Claude Script Runner",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": [],
+    "devAllowedDomains": ["http://localhost:3333"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "figma-claude-plugin",
+  "version": "1.0.0",
+  "description": "Two-way bridge between a Claude chat and Figma",
+  "scripts": {
+    "start": "node server.js & node watch.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}
