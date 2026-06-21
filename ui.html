@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mothership Script Runner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 12px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 12px;
+      gap: 10px;
+    }
+
+    /* ── Status bar ── */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    #dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #dot.ok      { background: #3fb950; }
+    #dot.error   { background: #f44747; }
+    #dot.running { background: #e2c08d; }
+
+    #status-text {
+      font-size: 11px;
+      color: #666;
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #status-text span { color: #aaa; }
+
+    /* ── Editor ── */
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+    }
+
+    #editor-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    #script {
+      flex: 1;
+      resize: none;
+      background: #141414;
+      color: #ce9178;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: "Fira Code", "Cascadia Code", "Consolas", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      outline: none;
+      caret-color: #fff;
+      tab-size: 2;
+    }
+
+    #script:focus { border-color: #555; }
+
+    /* ── Buttons ── */
+    #btn-row {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    button {
+      height: 34px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background 0.15s;
+    }
+
+    #run-btn {
+      flex: 1;
+      background: #18a0fb;
+      color: #fff;
+    }
+    #run-btn:hover    { background: #0d8de3; }
+    #run-btn:active   { background: #0a7ac8; }
+    #run-btn:disabled { background: #444; color: #888; cursor: default; }
+
+    #clear-btn {
+      width: 34px;
+      background: #2a2a2a;
+      color: #888;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    #clear-btn:hover { background: #333; color: #bbb; }
+
+    /* ── Output ── */
+    #output-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    #output {
+      min-height: 52px;
+      max-height: 76px;
+      overflow-y: auto;
+      background: #141414;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: "Fira Code", "Cascadia Code", "Consolas", monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #666;
+    }
+
+    #output.success { border-color: #2d5a27; color: #6dbe6d; }
+    #output.error   { border-color: #5a2020; color: #f44747; }
+  </style>
+</head>
+<body>
+
+  <div id="status-bar">
+    <div id="dot"></div>
+    <div id="status-text">Connecting to localhost:3333…</div>
+  </div>
+
+  <div id="editor-wrap">
+    <label for="script">Script</label>
+    <textarea
+      id="script"
+      spellcheck="false"
+      placeholder="// Scripts pushed to POST /run on localhost:3333 auto-execute here.&#10;// You can also type and run manually."
+    ></textarea>
+  </div>
+
+  <div id="btn-row">
+    <button id="run-btn">Run Script</button>
+    <button id="clear-btn" title="Clear">×</button>
+  </div>
+
+  <div id="output-wrap">
+    <label>Output</label>
+    <div id="output">Waiting…</div>
+  </div>
+
+  <script>
+    const POLL_URL = 'http://localhost:3333/poll';
+    const INTERVAL = 800; // ms
+
+    const scriptEl   = document.getElementById('script');
+    const runBtn     = document.getElementById('run-btn');
+    const clearBtn   = document.getElementById('clear-btn');
+    const output     = document.getElementById('output');
+    const dot        = document.getElementById('dot');
+    const statusText = document.getElementById('status-text');
+
+    let lastVersion = 0;
+    let running = false;
+    let currentLabel = 'Untitled script';
+
+    // ── Polling ──────────────────────────────────────────────
+    async function poll() {
+      try {
+        const res = await fetch(`${POLL_URL}?since=${lastVersion}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        setStatus('ok', `Polling localhost:3333 · v${data.version}`);
+
+        if (data.script && data.version > lastVersion) {
+          lastVersion = data.version;
+          currentLabel = data.label || 'Untitled script';
+          scriptEl.value = data.script;
+          setStatus('running', `Running: "${currentLabel}"`);
+          runScript(data.script);
+          return; // skip scheduling until result comes back (handled in onmessage)
+        }
+      } catch {
+        setStatus('error', 'Server unreachable — localhost:3333');
+      }
+      scheduleNextPoll();
+    }
+
+    function scheduleNextPoll() {
+      setTimeout(poll, INTERVAL);
+    }
+
+    // ── Status helpers ────────────────────────────────────────
+    function setStatus(state, text) {
+      dot.className = state;
+      statusText.innerHTML = text;
+    }
+
+    // ── Script execution ──────────────────────────────────────
+    function runScript(script) {
+      if (!script.trim()) return;
+      running = true;
+      runBtn.disabled = true;
+      output.className = '';
+      output.textContent = 'Running…';
+      parent.postMessage({ pluginMessage: { type: 'run-script', script } }, '*');
+    }
+
+    function postOutput(payload) {
+      parent.postMessage({ pluginMessage: { type: 'post-output', payload } }, '*');
+    }
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg || msg.type !== 'script-result') return;
+
+      running = false;
+      runBtn.disabled = false;
+
+      if (msg.success) {
+        output.className = 'success';
+        output.textContent = msg.output;
+        setStatus('ok', `Done · v${lastVersion}`);
+        postOutput({ label: currentLabel, version: lastVersion, success: true, output: msg.output });
+      } else {
+        output.className = 'error';
+        output.textContent = 'Error: ' + msg.error;
+        postOutput({ label: currentLabel, version: lastVersion, success: false, error: msg.error });
+        setStatus('error', `Error · v${lastVersion}`);
+      }
+
+      scheduleNextPoll();
+    };
+
+    // ── Manual controls ───────────────────────────────────────
+    runBtn.addEventListener('click', () => runScript(scriptEl.value));
+
+    clearBtn.addEventListener('click', () => {
+      scriptEl.value = '';
+      output.className = '';
+      output.textContent = 'Cleared.';
+    });
+
+    scriptEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = scriptEl.selectionStart;
+        const end = scriptEl.selectionEnd;
+        scriptEl.value = scriptEl.value.slice(0, s) + '  ' + scriptEl.value.slice(end);
+        scriptEl.selectionStart = scriptEl.selectionEnd = s + 2;
+      }
+    });
+
+    // ── Boot ──────────────────────────────────────────────────
+    poll();
+  </script>
+</body>
+</html>
