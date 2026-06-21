@@ -1,6 +1,6 @@
 {
-  "name": "Mothership Script Runner",
-  "id": "mothership-figma-plugin-dev",
+  "name": "Figma Script Runner",
+  "id": "figma-script-runner-dev",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

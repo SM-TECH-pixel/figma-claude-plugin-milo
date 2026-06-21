@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mothership Script Runner</title>
+  <title>Figma Script Runner</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -122,6 +122,16 @@
     }
     #clear-btn:hover { background: #333; color: #bbb; }
 
+    #screenshot-btn {
+      width: 34px;
+      background: #2a2a2a;
+      color: #888;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    #screenshot-btn:hover    { background: #333; color: #bbb; }
+    #screenshot-btn:disabled { background: #1e1e1e; color: #444; cursor: default; }
+
     /* ── Output ── */
     #output-wrap {
       display: flex;
@@ -168,6 +178,7 @@
 
   <div id="btn-row">
     <button id="run-btn">Run Script</button>
+    <button id="screenshot-btn" title="Screenshot selection (or page)">📷</button>
     <button id="clear-btn" title="Clear">×</button>
   </div>
 
@@ -180,10 +191,11 @@
     const POLL_URL = 'http://localhost:3333/poll';
     const INTERVAL = 800; // ms
 
-    const scriptEl   = document.getElementById('script');
-    const runBtn     = document.getElementById('run-btn');
-    const clearBtn   = document.getElementById('clear-btn');
-    const output     = document.getElementById('output');
+    const scriptEl      = document.getElementById('script');
+    const runBtn        = document.getElementById('run-btn');
+    const clearBtn      = document.getElementById('clear-btn');
+    const screenshotBtn = document.getElementById('screenshot-btn');
+    const output        = document.getElementById('output');
     const dot        = document.getElementById('dot');
     const statusText = document.getElementById('status-text');
 
@@ -240,7 +252,27 @@
 
     window.onmessage = (event) => {
       const msg = event.data.pluginMessage;
-      if (!msg || msg.type !== 'script-result') return;
+      if (!msg) return;
+
+      if (msg.type === 'screenshot-done') {
+        screenshotBtn.disabled = false;
+        output.className = 'success';
+        output.textContent = 'Screenshot saved: ' + msg.name;
+        setStatus('ok', 'Screenshot saved · ' + msg.name);
+        scheduleNextPoll();
+        return;
+      }
+
+      if (msg.type === 'screenshot-error') {
+        screenshotBtn.disabled = false;
+        output.className = 'error';
+        output.textContent = 'Screenshot failed: ' + msg.error;
+        setStatus('error', 'Screenshot failed');
+        scheduleNextPoll();
+        return;
+      }
+
+      if (msg.type !== 'script-result') return;
 
       running = false;
       runBtn.disabled = false;
@@ -262,6 +294,14 @@
 
     // ── Manual controls ───────────────────────────────────────
     runBtn.addEventListener('click', () => runScript(scriptEl.value));
+
+    screenshotBtn.addEventListener('click', () => {
+      screenshotBtn.disabled = true;
+      output.className = '';
+      output.textContent = 'Taking screenshot…';
+      setStatus('running', 'Taking screenshot…');
+      parent.postMessage({ pluginMessage: { type: 'take-screenshot' } }, '*');
+    });
 
     clearBtn.addEventListener('click', () => {
       scriptEl.value = '';
