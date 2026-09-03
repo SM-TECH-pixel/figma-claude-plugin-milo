@@ -245,14 +245,24 @@
     const COLLAPSED_SIZE = { width: 300, height: 48 };
     const COLLAPSE_KEY   = 'figma-script-runner-collapsed';
 
-    let collapsed = localStorage.getItem(COLLAPSE_KEY) === '1';
+    // Figma plugin UI iframes are sandboxed and can throw on localStorage
+    // access (SecurityError) instead of just being empty — guard both sides
+    // so a blocked storage API can't halt the rest of this script.
+    function readCollapsedPref() {
+      try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch (e) { return false; }
+    }
+    function writeCollapsedPref(value) {
+      try { localStorage.setItem(COLLAPSE_KEY, value ? '1' : '0'); } catch (e) {}
+    }
+
+    let collapsed = readCollapsedPref();
 
     function applyCollapsed(next, resize) {
       collapsed = next;
       document.body.classList.toggle('collapsed', collapsed);
       minimizeBtn.textContent = collapsed ? '▢' : '–';
       minimizeBtn.title = collapsed ? 'Expand' : 'Minimize';
-      localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+      writeCollapsedPref(collapsed);
       if (resize) {
         const size = collapsed ? COLLAPSED_SIZE : EXPANDED_SIZE;
         parent.postMessage({ pluginMessage: { type: 'resize', width: size.width, height: size.height } }, '*');
