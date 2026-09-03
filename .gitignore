@@ -7,3 +7,5 @@ node_modules/
 .claude/settings.local.json
 outputs/
 .DS_Store
+logs/
+start-bridge.sh
