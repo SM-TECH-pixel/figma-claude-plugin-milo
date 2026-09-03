@@ -4,7 +4,8 @@ const path = require('path')
 const app = express()
 const PORT = 3333
 
-const OUTPUT_FILE = '/Users/milobeyts/Library/Application Support/Claude/local-agent-mode-sessions/9ae746ba-f509-4082-84dd-e2febfc1450b/777fec50-36ef-4334-bdb1-93c866d4deb3/local_df696a2d-913c-4f83-90aa-d8b527eafc8b/outputs/figma-output.json'
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'))
+const OUTPUT_FILE = path.join(config.outputsPath, 'figma-output.json')
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*')
@@ -46,14 +47,15 @@ app.post('/output', (req, res) => {
   res.json({ ok: true })
 })
 
-const SCREENSHOT_FILE = path.join(path.dirname(OUTPUT_FILE), 'screenshot.png')
+const SCREENSHOT_DIR = path.join(__dirname, 'screenshots')
+if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR)
 
 app.post('/screenshot', (req, res) => {
   const { base64, name } = req.body
   if (!base64) return res.status(400).json({ error: 'No base64 data' })
   const buf = Buffer.from(base64, 'base64')
   const filename = name ? name.replace(/[^a-zA-Z0-9_-]/g, '_') + '.png' : 'screenshot.png'
-  const filepath = path.join(path.dirname(SCREENSHOT_FILE), filename)
+  const filepath = path.join(SCREENSHOT_DIR, filename)
   fs.writeFile(filepath, buf, (err) => {
     if (err) {
       console.error(`[${new Date().toLocaleTimeString()}] Screenshot save failed: ${err.message}`)
@@ -62,11 +64,10 @@ app.post('/screenshot', (req, res) => {
     console.log(`[${new Date().toLocaleTimeString()}] Screenshot saved: ${filename} (${buf.length} bytes)`)
     res.json({ ok: true, path: filepath, size: buf.length })
   })
-  // Also save to default path for backward compat
-  fs.writeFile(SCREENSHOT_FILE, buf, () => {})
 })
 
 app.get('/poll', (req, res) => {
+  console.log(`[${new Date().toLocaleTimeString()}] poll hit (since=${req.query.since})`)
   const since = parseInt(req.query.since || '0', 10)
   if (current.version > since) {
     res.json({ version: current.version, script: current.script, label: current.label })
@@ -76,5 +77,6 @@ app.get('/poll', (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`\nMothership Figma bridge running on http://localhost:${PORT}\n`)
+  console.log(`\nFigma Script Runner bridge on http://localhost:${PORT}`)
+  console.log(`Outputs: ${config.outputsPath}\n`)
 })

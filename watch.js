@@ -2,7 +2,8 @@ const fs = require('fs')
 const http = require('http')
 const path = require('path')
 
-const WATCH_DIR  = '/Users/milobeyts/Library/Application Support/Claude/local-agent-mode-sessions/9ae746ba-f509-4082-84dd-e2febfc1450b/777fec50-36ef-4334-bdb1-93c866d4deb3/local_df696a2d-913c-4f83-90aa-d8b527eafc8b/outputs'
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'))
+const WATCH_DIR  = config.outputsPath
 const WATCH_FILE = 'pending-script.json'
 const WATCH_PATH = path.join(WATCH_DIR, WATCH_FILE)
 const RUN_URL    = 'http://localhost:3333/run'

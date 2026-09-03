@@ -1,6 +1,11 @@
 figma.showUI(__html__, { width: 520, height: 460, title: "Figma Script Runner" });
 
 figma.ui.onmessage = async (msg) => {
+  if (msg.type === "resize") {
+    figma.ui.resize(msg.width, msg.height);
+    return;
+  }
+
   if (msg.type === "run-script") {
     try {
       const fn = new Function("figma", msg.script);
@@ -62,6 +67,40 @@ figma.ui.onmessage = async (msg) => {
     } catch (err) {
       figma.ui.postMessage({ type: "screenshot-error", error: err.message });
     }
+    return;
+  }
+
+  if (msg.type === "screenshot-all-frames") {
+    const pageName = msg.page || figma.currentPage.name;
+    const page = figma.root.children.find(p => p.name === pageName) || figma.currentPage;
+    try {
+      await figma.setCurrentPageAsync(page);
+    } catch(e) {}
+    const frames = page.children.filter(n => n.type === "FRAME");
+    const byName = {};
+    frames.forEach(f => {
+      if (!byName[f.name] || f.x > byName[f.name].x) byName[f.name] = f;
+    });
+    const toExport = Object.values(byName);
+    figma.ui.postMessage({ type: "screenshot-all-start", total: toExport.length });
+    for (const node of toExport) {
+      try {
+        const bytes = await node.exportAsync({ format: "PNG", constraint: { type: "WIDTH", value: 1440 } });
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const base64 = btoa(binary);
+        const safeName = node.name.trim().replace(/[^a-zA-Z0-9_\-]/g, "_");
+        await fetch("http://localhost:3333/screenshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64, name: safeName }),
+        });
+        figma.ui.postMessage({ type: "screenshot-all-progress", name: node.name, ok: true });
+      } catch (err) {
+        figma.ui.postMessage({ type: "screenshot-all-progress", name: node.name, ok: false, error: err.message });
+      }
+    }
+    figma.ui.postMessage({ type: "screenshot-all-done", total: toExport.length });
     return;
   }
 };
