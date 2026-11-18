@@ -2,9 +2,9 @@ const express = require('express')
 const fs = require('fs')
 const path = require('path')
 const app = express()
-const PORT = 3333
+const PORT = process.env.PORT || 3333
 
-const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'))
+const config = require('./config')
 const OUTPUT_FILE = path.join(config.outputsPath, 'figma-output.json')
 
 app.use((req, res, next) => {
@@ -76,7 +76,7 @@ app.get('/poll', (req, res) => {
   }
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`\nFigma Script Runner bridge on http://localhost:${PORT}`)
   console.log(`Outputs: ${config.outputsPath}\n`)
 })

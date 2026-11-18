@@ -2,11 +2,11 @@ const fs = require('fs')
 const http = require('http')
 const path = require('path')
 
-const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'))
+const config = require('./config')
 const WATCH_DIR  = config.outputsPath
 const WATCH_FILE = 'pending-script.json'
 const WATCH_PATH = path.join(WATCH_DIR, WATCH_FILE)
-const RUN_URL    = 'http://localhost:3333/run'
+const RUN_URL    = `http://127.0.0.1:${process.env.PORT || 3333}/run`
 
 let debounce = null
 

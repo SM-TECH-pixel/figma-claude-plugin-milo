@@ -1,11 +1,10 @@
 node_modules/
 config.json
 *.json.bak
-
-node_modules/
 .env
 .claude/settings.local.json
 outputs/
-.DS_Store
+screenshots/
 logs/
 start-bridge.sh
+.DS_Store

@@ -1,10 +1,14 @@
 {
-  "name": "mothership-figma-plugin",
-  "version": "1.0.0",
-  "description": "Figma plugin bridge — execute scripts in Figma from any external tool",
+  "name": "figma-script-runner",
+  "version": "1.1.0",
+  "description": "Local bridge that lets Claude Code run scripts in Figma Desktop",
   "main": "server.js",
+  "engines": { "node": ">=18" },
   "scripts": {
-    "start": "node server.js"
+    "start": "node start.js",
+    "server": "node server.js",
+    "watch": "node watch.js",
+    "run-script": "node run-script.js"
   },
   "dependencies": {
     "express": "^4.18.2"
